@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@octokit/rest": "^21.0.0",
-    "@octokit/webhooks": "^13.0.0",
+    "@octokit/webhooks": "^14.2.0",
     "bullmq": "^5.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.0",
