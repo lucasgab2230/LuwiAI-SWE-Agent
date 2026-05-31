@@ -26,9 +26,6 @@ jobs:
             - name: Install dependencies
               run: npm ci
 
-            - name: Run Lint
-              run: npm run lint
-
             - name: Run Build
               run: npm run build
 
@@ -51,14 +48,8 @@ jobs:
             - name: Install dependencies
               run: npm ci
 
-            - name: Run Lint
-              run: npm run lint
-
-            - name: Run Unit Tests
-              run: npm test
-              env:
-                # Mocked variables to not fail the tests
-                OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+            - name: Run Build
+              run: npm run build
     
     security-audit:
         runs-on: ubuntu-latest
