@@ -2,7 +2,10 @@ import OpenAI from 'openai';
 import config from '../config/index.js';
 import type { AgentJob, AgentJobType } from '../types/index.js';
 
-const openai = new OpenAI({ apiKey: config.openaiApiKey });
+const openai = new OpenAI({
+  apiKey: config.openaiApiKey,
+  baseURL: config.openaiBaseUrl || undefined,
+});
 
 interface AgentPrompt {
   systemPrompt: string;

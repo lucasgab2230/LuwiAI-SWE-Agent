@@ -70,6 +70,7 @@ export interface AgentConfig {
   githubClientSecret: string;
   githubAppWebhookSecret: string;
   openaiApiKey: string;
+  openaiBaseUrl: string;
   openaiModel: string;
   allowedOrigins: string[];
 }

@@ -11,6 +11,7 @@ const config: AgentConfig = {
   githubClientSecret: process.env.GITHUB_CLIENT_SECRET || '',
   githubAppWebhookSecret: process.env.GITHUB_WEBHOOK_SECRET || '',
   openaiApiKey: process.env.OPENAI_API_KEY || '',
+  openaiBaseUrl: process.env.OPENAI_BASE_URL || '',
   openaiModel: process.env.OPENAI_MODEL || 'gpt-4o',
   allowedOrigins: (process.env.ALLOWED_ORIGINS || 'http://localhost:5173').split(','),
 };
