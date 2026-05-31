@@ -1,0 +1,20 @@
+name: LuwiAI-SWE-Agent Deploy
+
+on:
+    push:
+        branches:
+            - main
+
+jobs:
+    # Vercel's Frontend Deploy
+    deploy-client:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v6
+
+            - name: Deploy Client to Vercel
+              uses: amondnet/vercel-action@v25
+              with:
+                vercel-token: ${{ secrets.VERCEL_TOKEN }}
+                vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+                vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
