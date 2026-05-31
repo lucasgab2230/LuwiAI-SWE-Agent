@@ -7,6 +7,7 @@ import AuthCallback from './pages/AuthCallback';
 import Repositories from './pages/Repositories';
 import Jobs from './pages/Jobs';
 import NewJob from './pages/NewJob';
+import Install from './pages/Install';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('luwiai_token');
@@ -34,6 +35,7 @@ export default function App() {
         <Route path="/repositories" element={<Repositories />} />
         <Route path="/jobs" element={<Jobs />} />
         <Route path="/jobs/new" element={<NewJob />} />
+        <Route path="/install" element={<Install />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

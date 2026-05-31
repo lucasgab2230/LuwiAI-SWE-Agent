@@ -1,5 +1,5 @@
 import { Outlet, Link, NavLink } from 'react-router-dom';
-import { Bot, GitBranch, ListTodo, PlusCircle, LogOut } from 'lucide-react';
+import { Bot, GitBranch, ListTodo, PlusCircle, ArrowDownToLine, LogOut } from 'lucide-react';
 import type { GithubUser } from '../types';
 
 function NavItem({ to, icon: Icon, label }: { to: string; icon: React.ElementType; label: string }) {
@@ -41,6 +41,7 @@ export default function Layout({ user, onLogout }: { user: GithubUser | null; on
           <NavItem to="/repositories" icon={GitBranch} label="Repositories" />
           <NavItem to="/jobs" icon={ListTodo} label="Jobs" />
           <NavItem to="/jobs/new" icon={PlusCircle} label="New Job" />
+          <NavItem to="/install" icon={ArrowDownToLine} label="Install" />
         </nav>
 
         <div className="p-4 border-t border-gray-800">

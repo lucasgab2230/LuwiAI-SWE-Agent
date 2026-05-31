@@ -2,6 +2,22 @@ import type { AgentJob } from '../types';
 
 const API_BASE = '/api';
 
+interface WorkflowFile {
+  path: string;
+  content: string;
+}
+
+interface SecretInfo {
+  name: string;
+  description: string;
+  required: boolean;
+}
+
+interface WorkflowInstallResponse {
+  files: WorkflowFile[];
+  secrets: SecretInfo[];
+}
+
 async function request<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -61,4 +77,7 @@ export const api = {
       ),
   },
   health: () => request<{ status: string; version: string; timestamp: string }>('/health'),
+  workflow: {
+    install: () => request<WorkflowInstallResponse>('/workflow/install'),
+  },
 };

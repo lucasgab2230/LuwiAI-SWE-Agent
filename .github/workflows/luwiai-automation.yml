@@ -1,0 +1,34 @@
+name: LuwiAI SWE Agent Automation
+
+on:
+  issue_comment:
+    types: [created, edited]
+  pull_request:
+    types: [opened, synchronize]
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  luwiai-agent:
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, 'luwiai-swe-agent')) ||
+      (github.event_name == 'pull_request' && github.event.action == 'opened') ||
+      (github.event_name == 'issues' && github.event.action == 'opened')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run LuwiAI SWE Agent
+        uses: ./.github/actions/luwiai-swe-agent
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          agent-api-url: ${{ secrets.LUWIAI_API_URL || 'https://luwiai-swe-agent.com/api' }}
+          openai-api-key: ${{ secrets.LUWIAI_OPENAI_API_KEY }}
+          openai-base-url: ${{ secrets.LUWIAI_OPENAI_BASE_URL || '' }}
+          openai-model: ${{ secrets.LUWIAI_OPENAI_MODEL || 'gpt-4o' }}

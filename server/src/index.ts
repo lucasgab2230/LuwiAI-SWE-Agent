@@ -6,6 +6,8 @@ import config from './config/index.js';
 import authRoutes from './routes/auth.js';
 import repositoryRoutes from './routes/repositories.js';
 import jobRoutes from './routes/jobs.js';
+import automationRoutes from './routes/automation.js';
+import workflowRoutes from './routes/workflow.js';
 import webhookRoutes from './webhooks/github.js';
 
 const app = express();
@@ -31,6 +33,8 @@ app.use('/api', limiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/repositories', repositoryRoutes);
 app.use('/api/jobs', jobRoutes);
+app.use('/api/automation', automationRoutes);
+app.use('/api/workflow', workflowRoutes);
 app.use('/api/webhooks', webhookRoutes);
 
 app.get('/api/health', (_req, res) => {
