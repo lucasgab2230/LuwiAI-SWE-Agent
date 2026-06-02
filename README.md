@@ -44,6 +44,7 @@ LuwiAI-SWE-Agent/
 
 - **Node.js** >= 22
 - **Redis** (for the async job queue)
+- **SQLite** (built into Node.js via `node:sqlite`, for persisted job history)
 - **GitHub OAuth App** (for authentication)
 - **OpenRouter API Key** (recommended for the AI agent)
 
@@ -309,6 +310,7 @@ npm install
 ```env
 PORT=3000
 REDIS_URL=redis://localhost:6379
+DATABASE_PATH=./data/luwiai.sqlite
 JWT_SECRET=your-super-secret-jwt-key
 GITHUB_CLIENT_ID=your-github-oauth-client-id
 GITHUB_CLIENT_SECRET=your-github-oauth-client-secret
@@ -337,7 +339,7 @@ cd client
 npm run dev
 ```
 
-The client will be available at `http://localhost:5173` and the API at `http://localhost:3000`.
+The client will be available at `http://localhost:5173` and the API at `http://localhost:3000`. Job records are persisted in the SQLite database configured by `DATABASE_PATH` (default: `./data/luwiai.sqlite` inside `server/`).
 
 ## API Endpoints
 

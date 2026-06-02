@@ -5,6 +5,13 @@ import config from '../config/index.js';
 import { processAgentJob } from '../agent/index.js';
 import type { AgentJob, AgentJobType } from '../types/index.js';
 import { AgentJobStatus } from '../types/index.js';
+import {
+  closeJobsDatabase,
+  findJobById,
+  findJobsByUserId,
+  saveJob,
+  updatePersistedJob,
+} from '../database/jobs.js';
 
 const connection = new IORedis(config.redisUrl, {
   maxRetriesPerRequest: null,
@@ -13,8 +20,6 @@ const connection = new IORedis(config.redisUrl, {
 export const agentQueue = new Queue('agent-jobs', {
   connection: connection as never,
 });
-
-const agentJobs = new Map<string, AgentJob>();
 
 export async function enqueueJob(
   userId: string,
@@ -33,7 +38,7 @@ export async function enqueueJob(
     updatedAt: new Date().toISOString(),
   };
 
-  agentJobs.set(job.id, job);
+  saveJob(job);
 
   await agentQueue.add('process-job', job, {
     attempts: 3,
@@ -44,32 +49,18 @@ export async function enqueueJob(
 }
 
 export function getJob(jobId: string): AgentJob | undefined {
-  return agentJobs.get(jobId);
+  return findJobById(jobId);
 }
 
 export function getUserJobs(userId: string): AgentJob[] {
-  return Array.from(agentJobs.values())
-    .filter((j) => j.userId === userId)
-    .sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+  return findJobsByUserId(userId);
 }
 
 export function updateJob(
   jobId: string,
   updates: Partial<AgentJob>
 ): AgentJob | undefined {
-  const job = agentJobs.get(jobId);
-  if (!job) return undefined;
-
-  const updated = {
-    ...job,
-    ...updates,
-    updatedAt: new Date().toISOString(),
-  };
-  agentJobs.set(jobId, updated);
-  return updated;
+  return updatePersistedJob(jobId, updates);
 }
 
 const worker = new Worker(
@@ -115,4 +106,5 @@ export async function closeQueue(): Promise<void> {
   await worker.close();
   await agentQueue.close();
   await connection.quit();
+  closeJobsDatabase();
 }

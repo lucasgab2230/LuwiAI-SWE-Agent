@@ -65,6 +65,7 @@ export interface CodeGenerationRequest {
 export interface AgentConfig {
   port: number;
   redisUrl: string;
+  databasePath: string;
   jwtSecret: string;
   githubClientId: string;
   githubClientSecret: string;

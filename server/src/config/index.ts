@@ -6,6 +6,7 @@ dotenv.config();
 const config: AgentConfig = {
   port: parseInt(process.env.PORT || '3000', 10),
   redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
+  databasePath: process.env.DATABASE_PATH || './data/luwiai.sqlite',
   jwtSecret: process.env.JWT_SECRET || 'dev-secret-change-in-production',
   githubClientId: process.env.GITHUB_CLIENT_ID || '',
   githubClientSecret: process.env.GITHUB_CLIENT_SECRET || '',

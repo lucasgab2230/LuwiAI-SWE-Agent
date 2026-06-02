@@ -23,3 +23,9 @@ coverage/
 
 # Build artifacts
 *.tsbuildinfo
+
+# Local databases
+data/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
