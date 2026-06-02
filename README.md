@@ -1,6 +1,6 @@
 # LuwiAI - Cloud Coding AI Agent
 
-An asynchronous cloud-based AI coding agent with full GitHub integration. Automate code reviews, bug fixing, refactoring, code generation, and more — all powered by OpenAI and connected to your GitHub repositories.
+An asynchronous cloud-based AI coding agent with full GitHub integration. Automate code reviews, bug fixing, refactoring, code generation, and more — all powered by OpenRouter (via an OpenAI-compatible API) and connected to your GitHub repositories.
 
 ## Architecture
 
@@ -10,7 +10,7 @@ LuwiAI-SWE-Agent/
 │   ├── src/
 │   │   ├── config/             # Environment configuration
 │   │   ├── github/             # GitHub OAuth & API integration (Octokit)
-│   │   ├── agent/              # AI agent core (OpenAI integration)
+│   │   ├── agent/              # AI agent core (OpenRouter/OpenAI-compatible integration)
 │   │   ├── queue/              # Async job queue (BullMQ + Redis)
 │   │   ├── routes/             # REST API endpoints
 │   │   ├── webhooks/           # GitHub webhook handlers
@@ -45,7 +45,7 @@ LuwiAI-SWE-Agent/
 - **Node.js** >= 22
 - **Redis** (for the async job queue)
 - **GitHub OAuth App** (for authentication)
-- **OpenAI API Key** (for the AI agent)
+- **OpenRouter API Key** (recommended for the AI agent)
 
 ### Installing Node.js
 
@@ -264,20 +264,27 @@ redis-cli ping
 
 ---
 
-### Obter uma OpenAI API Key
+### Obter uma OpenRouter API Key
 
-1. Acede a [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
-2. Clica em **Create new secret key**
-3. Dá um nome à chave (ex: `LuwiAI`)
-4. Escolhe o nível de permissões (recomenda-se `All` para desenvolvimento)
-5. Clica em **Create secret key**
+O projeto usa o SDK da OpenAI, mas também funciona com endpoints compatíveis. A opção recomendada é usar o **OpenRouter**, que permite escolher entre vários modelos através de uma única API.
+
+1. Acede a [openrouter.ai/keys](https://openrouter.ai/keys)
+2. Inicia sessão ou cria uma conta no OpenRouter
+3. Clica em **Create Key**
+4. Dá um nome à chave (ex: `LuwiAI`)
+5. Opcionalmente, define limites de uso/crédito para desenvolvimento
 6. **Copia a chave imediatamente** — não poderás vê-la novamente depois de fechar o diálogo
-7. Define o modelo pretendido no ficheiro `.env` (`OPENAI_MODEL`). Modelos recomendados:
-   - `gpt-4o` — melhor qualidade geral
-   - `gpt-4o-mini` — mais rápido e económico para tarefas simples
-   - `o3-mini` — bom para raciocínio lógico e debugging
+7. No ficheiro `.env`, usa a chave em `OPENAI_API_KEY` e define o endpoint do OpenRouter em `OPENAI_BASE_URL`:
+   ```env
+   OPENAI_API_KEY=sk-or-v1-your-openrouter-api-key
+   OPENAI_BASE_URL=https://openrouter.ai/api/v1
+   ```
+8. Define o modelo pretendido no ficheiro `.env` (`OPENAI_MODEL`). Confirma o identificador exato no catálogo do OpenRouter antes de usar. Exemplos:
+   - `openai/gpt-4o` — boa qualidade geral
+   - `openai/gpt-4o-mini` — mais rápido e económico para tarefas simples
+   - `anthropic/claude-3.5-sonnet` — alternativa para tarefas complexas de código
 
-> **Nota**: Se pretenderes utilizar um endpoint compatível com a API da OpenAI (como Azure OpenAI, Ollama, ou outros providers), define também `OPENAI_BASE_URL` no `.env`.
+> **Nota**: O nome das variáveis continua como `OPENAI_*` porque a aplicação usa o SDK da OpenAI com um endpoint compatível. Para usar a API direta da OpenAI, remove `OPENAI_BASE_URL` e utiliza uma chave/modelo da OpenAI.
 
 ---
 
@@ -306,8 +313,9 @@ JWT_SECRET=your-super-secret-jwt-key
 GITHUB_CLIENT_ID=your-github-oauth-client-id
 GITHUB_CLIENT_SECRET=your-github-oauth-client-secret
 GITHUB_WEBHOOK_SECRET=your-github-webhook-secret
-OPENAI_API_KEY=sk-your-openai-api-key
-OPENAI_MODEL=gpt-4o
+OPENAI_API_KEY=sk-or-v1-your-openrouter-api-key
+OPENAI_BASE_URL=https://openrouter.ai/api/v1
+OPENAI_MODEL=openai/gpt-4o
 ALLOWED_ORIGINS=http://localhost:5173
 ```
 
@@ -383,7 +391,7 @@ See [.github/workflows](.github/workflows/) for the current pipeline definitions
 
 ## Tech Stack
 
-- **Backend**: Node.js, Express, TypeScript, BullMQ, Redis, Octokit, OpenAI SDK
+- **Backend**: Node.js, Express, TypeScript, BullMQ, Redis, Octokit, OpenAI SDK (OpenRouter/OpenAI-compatible endpoint)
 - **Frontend**: React 18, TypeScript, Vite, TailwindCSS, React Router, Lucide Icons
 - **Auth**: GitHub OAuth, JWT
 - **CI/CD**: GitHub Actions, Vercel
