@@ -1,4 +1,4 @@
-import { Bot, Github } from 'lucide-react';
+import { Bot, GitBranch } from 'lucide-react';
 
 export default function Login({ loginUrl }: { loginUrl: string }) {
   return (
@@ -43,7 +43,7 @@ export default function Login({ loginUrl }: { loginUrl: string }) {
             href={loginUrl}
             className="btn-primary w-full flex items-center justify-center gap-3 text-lg py-3"
           >
-            <Github size={24} />
+            <GitBranch size={24} />
             Continue with GitHub
           </a>
 

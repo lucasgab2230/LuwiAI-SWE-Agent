@@ -8,7 +8,7 @@ const router = Router();
 
 const createJobSchema = z.object({
   type: z.nativeEnum(AgentJobType),
-  input: z.record(z.unknown()),
+  input: z.record(z.string(), z.unknown()),
 });
 
 router.post('/', authenticateToken, async (req, res) => {
@@ -18,7 +18,7 @@ router.post('/', authenticateToken, async (req, res) => {
     res.status(201).json({ job });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      res.status(400).json({ error: 'Invalid request body', details: error.errors });
+      res.status(400).json({ error: 'Invalid request body', details: error.issues });
       return;
     }
     console.error('Error creating job:', error);

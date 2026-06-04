@@ -108,7 +108,7 @@ router.post('/execute', authenticateToken, async (req, res) => {
     res.json({ output });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      res.status(400).json({ error: 'Invalid payload', details: error.errors });
+      res.status(400).json({ error: 'Invalid payload', details: error.issues });
       return;
     }
     console.error('Automation error:', error);
