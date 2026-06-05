@@ -1,165 +1,36 @@
 name: "LuwiAI SWE Agent"
-description: "Automate code reviews, generate code from issues, and provide PR suggestions — powered by the LuwiAI cloud agent."
+description: "Automate code reviews, generate issue suggestions, and provide PR feedback directly in GitHub Actions."
 author: "luwiai-swe-agent"
 
 inputs:
   github-token:
     description: "GitHub token with repo and issues permissions"
     required: true
-  agent-api-url:
-    description: "LuwiAI agent API base URL"
-    required: true
   openai-api-key:
-    description: "OpenAI API key for the agent"
+    description: "OpenAI or OpenAI-compatible API key for the agent"
     required: true
   openai-base-url:
-    description: "OpenAI API base URL (compatible endpoint)"
+    description: "OpenAI-compatible API base URL"
     required: false
-    default: ""
+    default: "https://api.openai.com/v1"
   openai-model:
-    description: "OpenAI model to use"
+    description: "OpenAI-compatible model to use"
     required: false
     default: "gpt-4o"
 
 runs:
   using: "composite"
   steps:
-    - name: "Checkout repository"
-      uses: actions/checkout@v4
-
     - name: "Setup Node.js"
       uses: actions/setup-node@v4
       with:
         node-version: "22"
 
-    - name: "Authenticate with LuwiAI agent"
-      id: auth
+    - name: "Run LuwiAI SWE Agent"
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
-        AGENT_API_URL: ${{ inputs.agent-api-url }}
-      run: |
-        if [ -z "$AGENT_API_URL" ]; then
-          echo "::error::LUWIAI_API_URL is required. Set it to your deployed LuwiAI API base URL, for example https://your-domain.example/api."
-          exit 1
-        fi
-
-        AGENT_API_URL="${AGENT_API_URL%/}"
-        echo "Authenticating with LuwiAI agent API at $AGENT_API_URL"
-
-        RESPONSE=$(curl -fsS -X POST "$AGENT_API_URL/auth/github-actions" \
-          -H "Content-Type: application/json" \
-          -d "$(jq -n \
-            --arg token "$GITHUB_TOKEN" \
-            --arg repository "${{ github.repository }}" \
-            '{token: $token, repository: $repository}')")
-
-        AGENT_TOKEN=$(echo "$RESPONSE" | jq -r '.token // empty')
-        if [ -z "$AGENT_TOKEN" ]; then
-          echo "::error::LuwiAI agent API did not return an automation token."
-          exit 1
-        fi
-
-        echo "token=$AGENT_TOKEN" >> $GITHUB_OUTPUT
-
-    - name: "Run agent action"
-      shell: bash
-      env:
-        AGENT_API_URL: ${{ inputs.agent-api-url }}
-        AGENT_TOKEN: ${{ steps.auth.outputs.token }}
-        GH_EVENT_NAME: ${{ github.event_name }}
-        GH_ISSUE_NUMBER: ${{ github.event.issue.number }}
-        GH_PR_NUMBER: ${{ github.event.pull_request.number }}
-        GH_IS_PR_COMMENT: ${{ github.event.issue.pull_request && 'true' || '' }}
-        GH_ACTION: ${{ github.event.action }}
-        GH_COMMENT_BODY: ${{ github.event.comment.body }}
         GH_TOKEN: ${{ inputs.github-token }}
         OPENAI_API_KEY: ${{ inputs.openai-api-key }}
         OPENAI_BASE_URL: ${{ inputs.openai-base-url }}
         OPENAI_MODEL: ${{ inputs.openai-model }}
-      run: |
-        AGENT_API_URL="${AGENT_API_URL%/}"
-
-        # Resolve qual evento ativar
-        EVENT_TYPE=""
-
-        if [ "$GH_EVENT_NAME" = "issue_comment" ]; then
-          echo "$GH_COMMENT_BODY" | grep -qi "luwiai-swe-agent"
-          if [ $? -eq 0 ]; then
-            if [ -n "$GH_IS_PR_COMMENT" ]; then
-              EVENT_TYPE="pr_mention"
-              GH_PR_NUMBER="$GH_ISSUE_NUMBER"
-              GH_ISSUE_NUMBER=""
-            elif [ -n "$GH_ISSUE_NUMBER" ]; then
-              EVENT_TYPE="issue_mention"
-            fi
-          fi
-        elif [ "$GH_EVENT_NAME" = "pull_request" ] && { [ "$GH_ACTION" = "opened" ] || [ "$GH_ACTION" = "synchronize" ]; }; then
-          EVENT_TYPE="pr_opened"
-        fi
-
-        if [ -z "$EVENT_TYPE" ]; then
-          echo "No relevant event detected. Skipping."
-          exit 0
-        fi
-
-        echo "Event type: $EVENT_TYPE"
-
-        ISSUE_NUMBER_JSON="null"
-        PR_NUMBER_JSON="null"
-        if [ -n "$GH_ISSUE_NUMBER" ]; then
-          ISSUE_NUMBER_JSON="$GH_ISSUE_NUMBER"
-        fi
-        if [ -n "$GH_PR_NUMBER" ]; then
-          PR_NUMBER_JSON="$GH_PR_NUMBER"
-        fi
-
-        PAYLOAD=$(jq -n \
-          --arg eventType "$EVENT_TYPE" \
-          --arg repository "${{ github.repository }}" \
-          --arg commentBody "$GH_COMMENT_BODY" \
-          --argjson issueNumber "$ISSUE_NUMBER_JSON" \
-          --argjson prNumber "$PR_NUMBER_JSON" \
-          '{
-            eventType: $eventType,
-            repository: $repository,
-            issueNumber: $issueNumber,
-            prNumber: $prNumber,
-            commentBody: $commentBody,
-            installationId: 0
-          } | with_entries(select(.value != null))'
-        )
-
-        # Chama o agente
-        RESULT=$(curl -fsS -X POST "$AGENT_API_URL/automation/execute" \
-          -H "Content-Type: application/json" \
-          -H "Authorization: Bearer $AGENT_TOKEN" \
-          -d "$PAYLOAD")
-
-        echo "Agent response: $RESULT"
-
-        # Extrai output
-        PR_NUMBER=$(echo "$RESULT" | jq -r '.output.prNumber // empty')
-        OUTPUT=$(echo "$RESULT" | jq -r '.output.review // .output.result // .output.message // empty')
-
-        if [ -n "$OUTPUT" ]; then
-          if [ "$EVENT_TYPE" = "issue_mention" ]; then
-            # Cria PR e comenta na issue
-            if [ -n "$PR_NUMBER" ] && [ "$PR_NUMBER" != "0" ]; then
-              gh issue comment "$GH_ISSUE_NUMBER" \
-                --repo "${{ github.repository }}" \
-                --body "🤖 LuwiAI criou a PR #$PR_NUMBER com o código solicitado."
-            fi
-          elif [ "$EVENT_TYPE" = "pr_mention" ]; then
-            # Comenta na PR com sugestões
-            gh pr comment "$GH_PR_NUMBER" \
-              --repo "${{ github.repository }}" \
-              --body "🤖 **LuwiAI SWE Agent** — Sugestões de melhoria:\n\n$OUTPUT"
-          elif [ "$EVENT_TYPE" = "pr_opened" ]; then
-            # Code review automático
-            gh pr review "$GH_PR_NUMBER" \
-              --repo "${{ github.repository }}" \
-              --comment \
-              --body "🤖 **LuwiAI Code Review**\n\n$OUTPUT"
-          fi
-        fi
+      run: node "$GITHUB_ACTION_PATH/run-agent.mjs"

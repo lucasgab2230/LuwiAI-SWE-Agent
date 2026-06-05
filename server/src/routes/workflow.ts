@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { readFileSync } from 'node:fs';
 import { authenticateToken } from '../middleware/auth.js';
 
 const router = Router();
@@ -15,6 +16,10 @@ function yamlTemplate(strings: TemplateStringsArray, ...values: string[]): strin
 }
 
 const GITHUB_EXPR = (expr: string) => `\${{ ${expr} }}`;
+const ACTION_SCRIPT_URL = new URL(
+  '../../../.github/actions/luwiai-swe-agent/run-agent.mjs',
+  import.meta.url
+);
 
 const WORKFLOW_YAML = yamlTemplate`
 name: LuwiAI SWE Agent Automation
@@ -44,7 +49,6 @@ jobs:
         uses: ./.github/actions/luwiai-swe-agent
         with:
           github-token: ${GITHUB_EXPR('secrets.GITHUB_TOKEN')}
-          agent-api-url: ${GITHUB_EXPR('secrets.LUWIAI_API_URL')}
           openai-api-key: ${GITHUB_EXPR('secrets.LUWIAI_OPENAI_API_KEY')}
           openai-base-url: ${GITHUB_EXPR(`secrets.LUWIAI_OPENAI_BASE_URL || ''`)}
           openai-model: ${GITHUB_EXPR(`secrets.LUWIAI_OPENAI_MODEL || 'gpt-4o'`)}
@@ -52,102 +56,41 @@ jobs:
 
 const ACTION_YML = yamlTemplate`
 name: "LuwiAI SWE Agent"
-description: "Automate code reviews, generate code from issues, and provide PR suggestions."
+description: "Automate code reviews, generate issue suggestions, and provide PR feedback directly in GitHub Actions."
 author: "luwiai-swe-agent"
 
 inputs:
   github-token:
     description: "GitHub token with repo and issues permissions"
     required: true
-  agent-api-url:
-    description: "LuwiAI agent API base URL"
-    required: true
   openai-api-key:
-    description: "OpenAI API key for the agent"
+    description: "OpenAI or OpenAI-compatible API key for the agent"
     required: true
   openai-base-url:
-    description: "OpenAI API base URL (compatible endpoint)"
+    description: "OpenAI-compatible API base URL"
     required: false
-    default: ""
+    default: "https://api.openai.com/v1"
   openai-model:
-    description: "OpenAI model to use"
+    description: "OpenAI-compatible model to use"
     required: false
     default: "gpt-4o"
 
 runs:
   using: "composite"
   steps:
-    - name: "Checkout repository"
-      uses: actions/checkout@v4
-
     - name: "Setup Node.js"
       uses: actions/setup-node@v4
       with:
         node-version: "22"
 
-    - name: "Authenticate with LuwiAI agent"
-      id: auth
+    - name: "Run LuwiAI SWE Agent"
       shell: bash
       env:
-        GITHUB_TOKEN: ${GITHUB_EXPR('inputs.github-token')}
-        AGENT_API_URL: ${GITHUB_EXPR('inputs.agent-api-url')}
-      run: |
-        if [ -z "$AGENT_API_URL" ]; then
-          echo "::error::LUWIAI_API_URL is required. Set it to your deployed LuwiAI API base URL, for example https://your-domain.example/api."
-          exit 1
-        fi
-
-        AGENT_API_URL="\${AGENT_API_URL%/}"
-        echo "Authenticating with LuwiAI agent API at $AGENT_API_URL"
-
-        RESPONSE=$(curl -fsS -X POST "$AGENT_API_URL/auth/github-actions" \\
-          -H "Content-Type: application/json" \\
-          -d "$(jq -n \\
-            --arg token "$GITHUB_TOKEN" \\
-            --arg repository "${GITHUB_EXPR('github.repository')}" \\
-            '{token: $token, repository: $repository}')")
-
-        AGENT_TOKEN=$(echo "$RESPONSE" | jq -r '.token // empty')
-        if [ -z "$AGENT_TOKEN" ]; then
-          echo "::error::LuwiAI agent API did not return an automation token."
-          exit 1
-        fi
-
-        echo "token=$AGENT_TOKEN" >> $GITHUB_OUTPUT
-
-    - name: "Run agent action"
-      shell: bash
-      env:
-        AGENT_API_URL: ${GITHUB_EXPR('inputs.agent-api-url')}
-        AGENT_TOKEN: ${GITHUB_EXPR('steps.auth.outputs.token')}
-        GH_EVENT_NAME: ${GITHUB_EXPR('github.event_name')}
-        GH_ISSUE_NUMBER: ${GITHUB_EXPR('github.event.issue.number')}
-        GH_PR_NUMBER: ${GITHUB_EXPR('github.event.pull_request.number')}
-        GH_IS_PR_COMMENT: ${GITHUB_EXPR(`github.event.issue.pull_request && 'true' || ''`)}
-        GH_ACTION: ${GITHUB_EXPR('github.event.action')}
-        GH_COMMENT_BODY: ${GITHUB_EXPR('github.event.comment.body')}
+        GH_TOKEN: ${GITHUB_EXPR('inputs.github-token')}
         OPENAI_API_KEY: ${GITHUB_EXPR('inputs.openai-api-key')}
         OPENAI_BASE_URL: ${GITHUB_EXPR('inputs.openai-base-url')}
         OPENAI_MODEL: ${GITHUB_EXPR('inputs.openai-model')}
-      run: |
-        AGENT_API_URL="\${AGENT_API_URL%/}"
-
-        EVENT_TYPE=""
-        if [ "$GH_EVENT_NAME" = "issue_comment" ]; then
-          echo "$GH_COMMENT_BODY" | grep -qi "luwiai-swe-agent"
-          if [ $? -eq 0 ]; then
-            if [ -n "$GH_IS_PR_COMMENT" ]; then
-              EVENT_TYPE="pr_mention"
-              GH_PR_NUMBER="$GH_ISSUE_NUMBER"
-              GH_ISSUE_NUMBER=""
-            elif [ -n "$GH_ISSUE_NUMBER" ]; then
-              EVENT_TYPE="issue_mention"
-            fi
-          fi
-        elif [ "$GH_EVENT_NAME" = "pull_request" ] && { [ "$GH_ACTION" = "opened" ] || [ "$GH_ACTION" = "synchronize" ]; }; then
-          EVENT_TYPE="pr_opened"
-        fi
-        echo "Event: $EVENT_TYPE"
+      run: node "$GITHUB_ACTION_PATH/run-agent.mjs"
 `;
 
 router.get('/install', authenticateToken, async (_req, res) => {
@@ -162,21 +105,20 @@ router.get('/install', authenticateToken, async (_req, res) => {
           path: '.github/actions/luwiai-swe-agent/action.yml',
           content: ACTION_YML.trimStart(),
         },
+        {
+          path: '.github/actions/luwiai-swe-agent/run-agent.mjs',
+          content: readFileSync(ACTION_SCRIPT_URL, 'utf8'),
+        },
       ],
       secrets: [
         {
-          name: 'LUWIAI_API_URL',
-          description: 'LuwiAI agent API base URL',
-          required: true,
-        },
-        {
           name: 'LUWIAI_OPENAI_API_KEY',
-          description: 'OpenAI API key for the agent',
+          description: 'OpenAI or OpenAI-compatible API key for the agent',
           required: true,
         },
         {
           name: 'LUWIAI_OPENAI_BASE_URL',
-          description: 'OpenAI API base URL (optional)',
+          description: 'OpenAI-compatible API base URL (optional, for example OpenRouter)',
           required: false,
         },
         {
