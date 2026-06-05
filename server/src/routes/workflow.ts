@@ -92,10 +92,28 @@ runs:
         GITHUB_TOKEN: ${GITHUB_EXPR('inputs.github-token')}
         AGENT_API_URL: ${GITHUB_EXPR('inputs.agent-api-url')}
       run: |
-        RESPONSE=$(curl -s -X POST "$AGENT_API_URL/auth/github" \\
+        if [ -z "$AGENT_API_URL" ]; then
+          echo "::error::LUWIAI_API_URL is required. Set it to your deployed LuwiAI API base URL, for example https://your-domain.example/api."
+          exit 1
+        fi
+
+        AGENT_API_URL="\${AGENT_API_URL%/}"
+        echo "Authenticating with LuwiAI agent API at $AGENT_API_URL"
+
+        RESPONSE=$(curl -fsS -X POST "$AGENT_API_URL/auth/github-actions" \\
           -H "Content-Type: application/json" \\
-          -d '{"code": "'"$GITHUB_TOKEN"'"}')
-        echo "token=$(echo $RESPONSE | jq -r '.token')" >> $GITHUB_OUTPUT
+          -d "$(jq -n \\
+            --arg token "$GITHUB_TOKEN" \\
+            --arg repository "${GITHUB_EXPR('github.repository')}" \\
+            '{token: $token, repository: $repository}')")
+
+        AGENT_TOKEN=$(echo "$RESPONSE" | jq -r '.token // empty')
+        if [ -z "$AGENT_TOKEN" ]; then
+          echo "::error::LuwiAI agent API did not return an automation token."
+          exit 1
+        fi
+
+        echo "token=$AGENT_TOKEN" >> $GITHUB_OUTPUT
 
     - name: "Run agent action"
       shell: bash
@@ -112,6 +130,8 @@ runs:
         OPENAI_BASE_URL: ${GITHUB_EXPR('inputs.openai-base-url')}
         OPENAI_MODEL: ${GITHUB_EXPR('inputs.openai-model')}
       run: |
+        AGENT_API_URL="\${AGENT_API_URL%/}"
+
         EVENT_TYPE=""
         if [ "$GH_EVENT_NAME" = "issue_comment" ]; then
           echo "$GH_COMMENT_BODY" | grep -qi "luwiai-swe-agent"

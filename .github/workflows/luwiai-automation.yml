@@ -25,7 +25,7 @@ jobs:
         uses: ./.github/actions/luwiai-swe-agent
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          agent-api-url: ${{ secrets.LUWIAI_API_URL || 'https://luwiai-swe-agent.com/api' }}
+          agent-api-url: ${{ secrets.LUWIAI_API_URL }}
           openai-api-key: ${{ secrets.LUWIAI_OPENAI_API_KEY }}
           openai-base-url: ${{ secrets.LUWIAI_OPENAI_BASE_URL || '' }}
           openai-model: ${{ secrets.LUWIAI_OPENAI_MODEL || 'gpt-4o' }}

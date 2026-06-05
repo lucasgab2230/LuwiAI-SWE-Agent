@@ -9,7 +9,6 @@ inputs:
   agent-api-url:
     description: "LuwiAI agent API base URL"
     required: true
-    default: "https://luwiai-swe-agent.com/api"
   openai-api-key:
     description: "OpenAI API key for the agent"
     required: true
@@ -40,10 +39,28 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github-token }}
         AGENT_API_URL: ${{ inputs.agent-api-url }}
       run: |
-        RESPONSE=$(curl -s -X POST "$AGENT_API_URL/auth/github" \
+        if [ -z "$AGENT_API_URL" ]; then
+          echo "::error::LUWIAI_API_URL is required. Set it to your deployed LuwiAI API base URL, for example https://your-domain.example/api."
+          exit 1
+        fi
+
+        AGENT_API_URL="${AGENT_API_URL%/}"
+        echo "Authenticating with LuwiAI agent API at $AGENT_API_URL"
+
+        RESPONSE=$(curl -fsS -X POST "$AGENT_API_URL/auth/github-actions" \
           -H "Content-Type: application/json" \
-          -d "{\"code\": \"$GITHUB_TOKEN\"}")
-        echo "token=$(echo $RESPONSE | jq -r '.token')" >> $GITHUB_OUTPUT
+          -d "$(jq -n \
+            --arg token "$GITHUB_TOKEN" \
+            --arg repository "${{ github.repository }}" \
+            '{token: $token, repository: $repository}')")
+
+        AGENT_TOKEN=$(echo "$RESPONSE" | jq -r '.token // empty')
+        if [ -z "$AGENT_TOKEN" ]; then
+          echo "::error::LuwiAI agent API did not return an automation token."
+          exit 1
+        fi
+
+        echo "token=$AGENT_TOKEN" >> $GITHUB_OUTPUT
 
     - name: "Run agent action"
       shell: bash
@@ -61,6 +78,8 @@ runs:
         OPENAI_BASE_URL: ${{ inputs.openai-base-url }}
         OPENAI_MODEL: ${{ inputs.openai-model }}
       run: |
+        AGENT_API_URL="${AGENT_API_URL%/}"
+
         # Resolve qual evento ativar
         EVENT_TYPE=""
 
@@ -112,7 +131,7 @@ runs:
         )
 
         # Chama o agente
-        RESULT=$(curl -s -X POST "$AGENT_API_URL/automation/execute" \
+        RESULT=$(curl -fsS -X POST "$AGENT_API_URL/automation/execute" \
           -H "Content-Type: application/json" \
           -H "Authorization: Bearer $AGENT_TOKEN" \
           -d "$PAYLOAD")
