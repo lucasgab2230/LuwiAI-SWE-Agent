@@ -53,8 +53,10 @@ runs:
         GH_EVENT_NAME: ${{ github.event_name }}
         GH_ISSUE_NUMBER: ${{ github.event.issue.number }}
         GH_PR_NUMBER: ${{ github.event.pull_request.number }}
+        GH_IS_PR_COMMENT: ${{ github.event.issue.pull_request && 'true' || '' }}
         GH_ACTION: ${{ github.event.action }}
         GH_COMMENT_BODY: ${{ github.event.comment.body }}
+        GH_TOKEN: ${{ inputs.github-token }}
         OPENAI_API_KEY: ${{ inputs.openai-api-key }}
         OPENAI_BASE_URL: ${{ inputs.openai-base-url }}
         OPENAI_MODEL: ${{ inputs.openai-model }}
@@ -65,13 +67,15 @@ runs:
         if [ "$GH_EVENT_NAME" = "issue_comment" ]; then
           echo "$GH_COMMENT_BODY" | grep -qi "luwiai-swe-agent"
           if [ $? -eq 0 ]; then
-            if [ -n "$GH_ISSUE_NUMBER" ] && [ -z "$GH_PR_NUMBER" ]; then
-              EVENT_TYPE="issue_mention"
-            elif [ -n "$GH_PR_NUMBER" ]; then
+            if [ -n "$GH_IS_PR_COMMENT" ]; then
               EVENT_TYPE="pr_mention"
+              GH_PR_NUMBER="$GH_ISSUE_NUMBER"
+              GH_ISSUE_NUMBER=""
+            elif [ -n "$GH_ISSUE_NUMBER" ]; then
+              EVENT_TYPE="issue_mention"
             fi
           fi
-        elif [ "$GH_EVENT_NAME" = "pull_request" ] && [ "$GH_ACTION" = "opened" ]; then
+        elif [ "$GH_EVENT_NAME" = "pull_request" ] && { [ "$GH_ACTION" = "opened" ] || [ "$GH_ACTION" = "synchronize" ]; }; then
           EVENT_TYPE="pr_opened"
         fi
 
@@ -82,17 +86,29 @@ runs:
 
         echo "Event type: $EVENT_TYPE"
 
-        # Payload base
-        PAYLOAD=$(cat <<EOF
-        {
-          "eventType": "$EVENT_TYPE",
-          "repository": "${{ github.repository }}",
-          "issueNumber": $GH_ISSUE_NUMBER,
-          "prNumber": $GH_PR_NUMBER,
-          "commentBody": $(echo "$GH_COMMENT_BODY" | jq -Rs '.'),
-          "installationId": 0
-        }
-        EOF
+        ISSUE_NUMBER_JSON="null"
+        PR_NUMBER_JSON="null"
+        if [ -n "$GH_ISSUE_NUMBER" ]; then
+          ISSUE_NUMBER_JSON="$GH_ISSUE_NUMBER"
+        fi
+        if [ -n "$GH_PR_NUMBER" ]; then
+          PR_NUMBER_JSON="$GH_PR_NUMBER"
+        fi
+
+        PAYLOAD=$(jq -n \
+          --arg eventType "$EVENT_TYPE" \
+          --arg repository "${{ github.repository }}" \
+          --arg commentBody "$GH_COMMENT_BODY" \
+          --argjson issueNumber "$ISSUE_NUMBER_JSON" \
+          --argjson prNumber "$PR_NUMBER_JSON" \
+          '{
+            eventType: $eventType,
+            repository: $repository,
+            issueNumber: $issueNumber,
+            prNumber: $prNumber,
+            commentBody: $commentBody,
+            installationId: 0
+          } | with_entries(select(.value != null))'
         )
 
         # Chama o agente
@@ -104,13 +120,13 @@ runs:
         echo "Agent response: $RESULT"
 
         # Extrai output
-        OUTPUT=$(echo "$RESULT" | jq -r '.output.result // empty')
+        PR_NUMBER=$(echo "$RESULT" | jq -r '.output.prNumber // empty')
+        OUTPUT=$(echo "$RESULT" | jq -r '.output.review // .output.result // .output.message // empty')
 
         if [ -n "$OUTPUT" ]; then
           if [ "$EVENT_TYPE" = "issue_mention" ]; then
             # Cria PR e comenta na issue
-            PR_NUMBER=$(echo "$OUTPUT" | jq -r '.prNumber // empty')
-            if [ -n "$PR_NUMBER" ]; then
+            if [ -n "$PR_NUMBER" ] && [ "$PR_NUMBER" != "0" ]; then
               gh issue comment "$GH_ISSUE_NUMBER" \
                 --repo "${{ github.repository }}" \
                 --body "🤖 LuwiAI criou a PR #$PR_NUMBER com o código solicitado."

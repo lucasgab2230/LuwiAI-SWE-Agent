@@ -24,8 +24,6 @@ on:
     types: [created, edited]
   pull_request:
     types: [opened, synchronize]
-  issues:
-    types: [opened]
 
 permissions:
   contents: write
@@ -36,8 +34,7 @@ jobs:
   luwiai-agent:
     if: |
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, 'luwiai-swe-agent')) ||
-      (github.event_name == 'pull_request' && github.event.action == 'opened') ||
-      (github.event_name == 'issues' && github.event.action == 'opened')
+      (github.event_name == 'pull_request' && (github.event.action == 'opened' || github.event.action == 'synchronize'))
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -105,14 +102,29 @@ runs:
       env:
         AGENT_API_URL: ${GITHUB_EXPR('inputs.agent-api-url')}
         AGENT_TOKEN: ${GITHUB_EXPR('steps.auth.outputs.token')}
+        GH_EVENT_NAME: ${GITHUB_EXPR('github.event_name')}
+        GH_ISSUE_NUMBER: ${GITHUB_EXPR('github.event.issue.number')}
+        GH_PR_NUMBER: ${GITHUB_EXPR('github.event.pull_request.number')}
+        GH_IS_PR_COMMENT: ${GITHUB_EXPR(`github.event.issue.pull_request && 'true' || ''`)}
+        GH_ACTION: ${GITHUB_EXPR('github.event.action')}
+        GH_COMMENT_BODY: ${GITHUB_EXPR('github.event.comment.body')}
         OPENAI_API_KEY: ${GITHUB_EXPR('inputs.openai-api-key')}
         OPENAI_BASE_URL: ${GITHUB_EXPR('inputs.openai-base-url')}
         OPENAI_MODEL: ${GITHUB_EXPR('inputs.openai-model')}
       run: |
         EVENT_TYPE=""
-        if [ "${GITHUB_EXPR('github.event_name')}" = "issue_comment" ]; then
-          echo "${GITHUB_EXPR('github.event.comment.body')}" | grep -qi "luwiai-swe-agent" && EVENT_TYPE="mention"
-        elif [ "${GITHUB_EXPR('github.event_name')}" = "pull_request" ] && [ "${GITHUB_EXPR('github.event.action')}" = "opened" ]; then
+        if [ "$GH_EVENT_NAME" = "issue_comment" ]; then
+          echo "$GH_COMMENT_BODY" | grep -qi "luwiai-swe-agent"
+          if [ $? -eq 0 ]; then
+            if [ -n "$GH_IS_PR_COMMENT" ]; then
+              EVENT_TYPE="pr_mention"
+              GH_PR_NUMBER="$GH_ISSUE_NUMBER"
+              GH_ISSUE_NUMBER=""
+            elif [ -n "$GH_ISSUE_NUMBER" ]; then
+              EVENT_TYPE="issue_mention"
+            fi
+          fi
+        elif [ "$GH_EVENT_NAME" = "pull_request" ] && { [ "$GH_ACTION" = "opened" ] || [ "$GH_ACTION" = "synchronize" ]; }; then
           EVENT_TYPE="pr_opened"
         fi
         echo "Event: $EVENT_TYPE"
