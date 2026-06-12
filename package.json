@@ -1,0 +1,17 @@
+{
+  "name": "luwiai-swe-agent",
+  "version": "1.0.0",
+  "description": "An asynchronous cloud-based AI coding agent with full GitHub integration. Automate code reviews, bug fixing, refactoring, code generation, and more — all powered by OpenRouter (via an OpenAI-compatible API) and connected to your GitHub repositories.",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "prepare": "husky",
+    "commitlint": "commitlint --edit",
+    "lint:commit": "commitlint --from HEAD~1 --to HEAD --verbose"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.0.2",
+    "@commitlint/config-conventional": "^21.0.2",
+    "husky": "^9.1.7"
+  }
+}
