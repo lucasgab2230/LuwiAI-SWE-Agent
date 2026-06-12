@@ -20,7 +20,7 @@ app.use(
   })
 );
 
-app.post('/api/webhooks/github', express.raw({ type: 'application/json' }));
+app.use('/api/webhooks', webhookRoutes);
 app.use(express.json());
 
 const limiter = rateLimit({
@@ -35,7 +35,6 @@ app.use('/api/repositories', repositoryRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/automation', automationRoutes);
 app.use('/api/workflow', workflowRoutes);
-app.use('/api/webhooks', webhookRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({
