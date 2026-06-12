@@ -123,7 +123,7 @@ export default function Install() {
             Add the following files to your repository. The workflow will:</p>
           <ul className="text-sm text-gray-400 mb-4 space-y-1.5 list-disc list-inside">
             <li>Run code reviews automatically on new pull requests</li>
-            <li>Respond when you mention <code className="text-primary-400">@luwiai-swe-agent</code> in issues (generates code + PR)</li>
+            <li>Respond when you mention <code className="text-primary-400">@luwiai-swe-agent</code> in issues with implementation guidance</li>
             <li>Respond when you mention <code className="text-primary-400">@luwiai-swe-agent</code> in PRs (provides improvement suggestions)</li>
           </ul>
 
@@ -221,7 +221,7 @@ git push origin main`}
             </li>
             <li className="flex items-start gap-3">
               <Terminal size={16} className="text-green-500 shrink-0 mt-0.5" />
-              <span><strong className="text-gray-300">Comment on an issue</strong> — Write a comment containing <code className="text-primary-400">@luwiai-swe-agent</code> and the agent will generate code and create a PR.</span>
+              <span><strong className="text-gray-300">Comment on an issue</strong> — Write a comment containing <code className="text-primary-400">@luwiai-swe-agent</code> and the agent will reply with implementation guidance.</span>
             </li>
             <li className="flex items-start gap-3">
               <Terminal size={16} className="text-purple-500 shrink-0 mt-0.5" />
